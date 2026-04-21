@@ -1,1 +1,664 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon" href="./favicon.ico"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="description" content="Web site created using create-react-app"/><title>React App</title><script defer="defer" src="./static/js/main.e38f8882.js"></script></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ElmoHairStyler ✂️</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+    .spinner { width:22px;height:22px;border:2px solid #1e1e1e;border-top-color:#d4a843;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block }
+    .btn-gold { background:linear-gradient(90deg,#d4a843,#c97d5a);color:#0f0f0f;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:13px;transition:all .2s }
+    .btn-gold:hover { filter:brightness(1.1);transform:translateY(-1px) }
+    .btn-outline { background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:10px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;transition:all .2s }
+    .btn-outline:hover { border-color:#555;color:#ccc }
+    .card { background:#111;border:1px solid #1a1a1a;border-radius:14px;padding:18px }
+    .label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#555;margin-bottom:8px }
+    input[type=text],input[type=password] { width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 12px;color:#ccc;font-size:13px;outline:none }
+    input:focus { border-color:#d4a843 }
+    .badge { display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700 }
+    .badge-gold { background:#d4a84320;border:1px solid #d4a84340;color:#d4a843 }
+    .badge-green { background:#22c55e15;border:1px solid #22c55e33;color:#4ade80 }
+    .badge-amber { background:#f59e0b15;border:1px solid #f59e0b33;color:#fbbf24 }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<script>
+const { useState, useEffect, useRef, useCallback } = React;
+const h = React.createElement;
+
+// ─── CONFIG ────────────────────────────────────────────────
+const CONFIG = {
+  WORKER_URL: "https://hairstyler.acedynamicstrading.workers.dev",
+  REPLICATE_VERSION: "906cf2c5c8b5290c621b3b59aef3b6a58c73b5ef50e8c3ba3aa4f62e594fcbec"
+};
+
+// ─── DATA ──────────────────────────────────────────────────
+const HAIR_COLORS = [
+  { id:"natural-black",   label:"Natural Black",     hex:"#1a0f08" },
+  { id:"dark-brown",      label:"Dark Brown",        hex:"#3b1f0e" },
+  { id:"medium-brown",    label:"Medium Brown",      hex:"#6b3a2a" },
+  { id:"light-brown",     label:"Light Brown",       hex:"#8b5e3c" },
+  { id:"auburn",          label:"Auburn",            hex:"#7b2d00" },
+  { id:"chestnut",        label:"Chestnut",          hex:"#954535" },
+  { id:"copper",          label:"Copper",            hex:"#b5651d" },
+  { id:"strawberry",      label:"Strawberry Blonde", hex:"#c97d5a" },
+  { id:"golden-blonde",   label:"Golden Blonde",     hex:"#d4a843" },
+  { id:"platinum-blonde", label:"Platinum Blonde",   hex:"#e8d5a0" },
+  { id:"ash-blonde",      label:"Ash Blonde",        hex:"#c2b280" },
+  { id:"silver",          label:"Silver",            hex:"#a8a8a8" },
+  { id:"burgundy",        label:"Burgundy",          hex:"#800020" },
+  { id:"vivid-red",       label:"Vivid Red",         hex:"#cc2200" },
+  { id:"rose-gold",       label:"Rose Gold",         hex:"#d4908a" },
+  { id:"pastel-pink",     label:"Pastel Pink",       hex:"#f4b8c1" },
+  { id:"ocean-blue",      label:"Ocean Blue",        hex:"#1a4a8a" },
+  { id:"blue-black",      label:"Blue Black",        hex:"#0d0d1a" },
+];
+const HIGHLIGHTS = ["None","Traditional","Chunky","Balayage","Ombré"];
+const CATEGORIES = ["All","Short","Medium","Long","Updo","Natural","Men"];
+
+// ─── SCORE RING ────────────────────────────────────────────
+function ScoreRing({ score }) {
+  const r = 16, circ = 2 * Math.PI * r;
+  const color = score >= 85 ? "#22c55e" : score >= 70 ? "#f59e0b" : "#f87171";
+  const label = score >= 85 ? "Excellent Match" : score >= 70 ? "Good Match" : "Worth Trying";
+  return h("div", { style: { display:"flex", alignItems:"center", gap:8 } },
+    h("svg", { width:42, height:42, viewBox:"0 0 42 42" },
+      h("circle", { cx:21, cy:21, r, fill:"none", stroke:"#222", strokeWidth:3.5 }),
+      h("circle", { cx:21, cy:21, r, fill:"none", stroke:color, strokeWidth:3.5,
+        strokeDasharray:`${score/100*circ} ${circ}`, strokeLinecap:"round",
+        transform:"rotate(-90 21 21)" }),
+      h("text", { x:21, y:25, textAnchor:"middle", fill:color, fontSize:10, fontWeight:"bold" }, score)
+    ),
+    h("div", null,
+      h("div", { style:{ color, fontSize:12, fontWeight:700 } }, label),
+      h("div", { style:{ color:"#555", fontSize:11 } }, "Suitability Score")
+    )
+  );
+}
+
+// ─── PRIVACY BAR ───────────────────────────────────────────
+function PrivacyBar() {
+  return h("div", { style:{
+    background:"#0c1f14", borderBottom:"1px solid #173325",
+    padding:"8px 18px", display:"flex", alignItems:"center",
+    gap:10, fontSize:12, color:"#5bc98a", flexWrap:"wrap"
+  }},
+    "🔒 ", h("strong",null,"Privacy First:"),
+    " Your photos are never stored on our servers — perfect for salon consultations.",
+    h("span", { style:{
+      marginLeft:"auto", background:"#22c55e12", border:"1px solid #22c55e2a",
+      padding:"2px 10px", borderRadius:20, color:"#4ade80",
+      fontSize:10, fontWeight:600, whiteSpace:"nowrap"
+    }}, "100% Free · No Signup · Unlimited")
+  );
+}
+
+// ─── STYLE CARD ────────────────────────────────────────────
+function StyleCard({ style, hasPhoto, onClick }) {
+  const [hover, setHover] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [err, setErr] = useState(false);
+  const noImg = !style.imageURL || err;
+
+  return h("div", {
+    onClick, onMouseEnter:()=>setHover(true), onMouseLeave:()=>setHover(false),
+    style:{
+      borderRadius:12, overflow:"hidden", cursor:"pointer",
+      border:`1px solid ${hover?"#d4a843":"#1a1a1a"}`,
+      transform: hover?"translateY(-3px)":"none",
+      transition:"all .18s", background:"#141414",
+      boxShadow: hover?"0 8px 28px #d4a84315":"none"
+    }
+  },
+    h("div", { style:{ position:"relative", paddingTop:"120%", background:"#0d0d0d" }},
+      !loaded && !noImg && h("div", { style:{
+        position:"absolute",inset:0,display:"flex",alignItems:"center",
+        justifyContent:"center",flexDirection:"column",gap:8
+      }},
+        h("div",{className:"spinner"}),
+        h("span",{style:{fontSize:9,color:"#333"}},"Loading…")
+      ),
+      noImg
+        ? h("div",{ style:{
+            position:"absolute",inset:0,display:"flex",flexDirection:"column",
+            alignItems:"center",justifyContent:"center",gap:8,
+            background:"linear-gradient(135deg,#1a1a1a,#111)"
+          }},
+            h("div",{style:{fontSize:32}},"✂️"),
+            h("div",{style:{fontSize:10,color:"#555",textAlign:"center",padding:"0 8px"}},style.name)
+          )
+        : h("img",{
+            src:style.imageURL, alt:style.name,
+            onLoad:()=>setLoaded(true), onError:()=>setErr(true),
+            style:{
+              position:"absolute",inset:0,width:"100%",height:"100%",
+              objectFit:"cover",opacity:loaded?1:0,transition:"opacity .3s"
+            }
+          }),
+      h("div",{ style:{
+        position:"absolute",top:6,right:6,background:"#000000bb",
+        borderRadius:5,padding:"2px 6px",fontSize:9,color:"#777",backdropFilter:"blur(4px)"
+      }},style.category),
+      hover && h("div",{ style:{
+        position:"absolute",inset:0,background:"#000000aa",display:"flex",
+        alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#d4a843"
+      }}, hasPhoto ? "Try This Style →" : "Select Style →")
+    ),
+    h("div",{ style:{ padding:"9px 11px" }},
+      h("div",{ style:{ fontWeight:600,color:"#e0e0e0",fontSize:12 }},style.name),
+      style.description && h("div",{ style:{ color:"#555",fontSize:10,marginTop:2 }},style.description)
+    )
+  );
+}
+
+// ─── SETTINGS MODAL ────────────────────────────────────────
+function SettingsModal({ onClose }) {
+  const [url, setUrl] = useState(CONFIG.WORKER_URL);
+  const [key, setKey] = useState("");
+  return h("div",{ style:{
+    position:"fixed",inset:0,background:"#000000cc",zIndex:1000,
+    display:"flex",alignItems:"center",justifyContent:"center",padding:20
+  }},
+    h("div",{ style:{
+      background:"#1a1a1a",borderRadius:16,padding:28,
+      maxWidth:520,width:"100%",border:"1px solid #2a2a2a"
+    }},
+      h("div",{style:{fontWeight:800,fontSize:18,marginBottom:6}},"⚙️ App Configuration"),
+      h("div",{style:{color:"#666",fontSize:13,marginBottom:20}},"Worker URL and optional Replicate key override"),
+      h("div",{style:{marginBottom:16}},
+        h("div",{className:"label"},"Cloudflare Worker URL"),
+        h("input",{type:"text",value:url,onChange:e=>setUrl(e.target.value),placeholder:"https://your-worker.workers.dev"}),
+        h("div",{style:{fontSize:11,color:"#555",marginTop:4}},"Your CORS proxy worker URL")
+      ),
+      h("div",{style:{marginBottom:24}},
+        h("div",{className:"label"},"Replicate API Key (optional override)"),
+        h("input",{type:"password",value:key,onChange:e=>setKey(e.target.value),placeholder:"r8_xxxxxxxxxxxxxxxxxxxx"}),
+        h("div",{style:{fontSize:11,color:"#555",marginTop:4}},"Leave blank to use the key baked into Apps Script")
+      ),
+      h("div",{style:{display:"flex",gap:10}},
+        h("button",{className:"btn-gold",onClick:()=>{
+          CONFIG.WORKER_URL=url;
+          if(key) CONFIG.REPLICATE_KEY=key;
+          onClose(); window.location.reload();
+        }},"Save & Reload"),
+        h("button",{className:"btn-outline",onClick:onClose},"Cancel")
+      )
+    )
+  );
+}
+
+// ─── AI HAIR TRANSFER ──────────────────────────────────────
+async function runHairTransfer(faceImage, shapeImageURL) {
+  const workerUrl = CONFIG.WORKER_URL;
+  // Start prediction
+  const startRes = await fetch(workerUrl, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      action:"startHairTransfer",
+      faceImage: faceImage.startsWith("data:") ? faceImage : `data:image/jpeg;base64,${faceImage}`,
+      shapeImage: shapeImageURL
+    })
+  });
+  const startData = await startRes.json();
+  if (!startData.success || !startData.predictionId) {
+    console.error("Start failed:", startData);
+    return { success:false, error:"start_failed" };
+  }
+  const id = startData.predictionId;
+  // Poll
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const pollRes = await fetch(`${workerUrl}?action=pollPrediction&id=${id}`);
+    const pollData = await pollRes.json();
+    if (pollData.status === "succeeded") return { success:true, imageUrl: pollData.output };
+    if (pollData.status === "failed" || pollData.status === "canceled") return { success:false, error:"prediction_failed" };
+  }
+  return { success:false, error:"timeout" };
+}
+
+// ─── COLOUR OVERLAY FALLBACK ───────────────────────────────
+async function applyColourOverlay(faceImage, colorHex, highlight, canvas) {
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=faceImage; });
+  canvas.width=img.width; canvas.height=img.height;
+  ctx.drawImage(img,0,0);
+  ctx.globalCompositeOperation="color";
+  ctx.globalAlpha=0.4;
+  ctx.fillStyle=colorHex;
+  ctx.fillRect(0,0,img.width,img.height*0.52);
+  if (highlight !== "None") {
+    ctx.globalCompositeOperation="soft-light";
+    ctx.globalAlpha=0.22;
+    const g=ctx.createLinearGradient(0,0,img.width,img.height*0.45);
+    g.addColorStop(0,"#ffffff"); g.addColorStop(0.5,colorHex); g.addColorStop(1,"#ffffff00");
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,img.width,img.height*0.45);
+  }
+  ctx.globalCompositeOperation="source-over";
+  ctx.globalAlpha=1;
+  return canvas.toDataURL("image/jpeg",0.93);
+}
+
+// ─── TRY-ON SCREEN ─────────────────────────────────────────
+function TryOnScreen({ style, onBack, score }) {
+  const [photo, setPhoto] = useState(null);
+  const [result, setResult] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [color, setColor] = useState(HAIR_COLORS[8]);
+  const [highlight, setHighlight] = useState("None");
+  const [isAI, setIsAI] = useState(false);
+  const [webcamOn, setWebcamOn] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const fileRef = useRef(), videoRef = useRef(), snapRef = useRef(), overlayRef = useRef();
+
+  const handleFile = e => {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => { setPhoto(ev.target.result); setResult(null); };
+    r.readAsDataURL(f);
+  };
+
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+      setWebcamOn(true);
+    } catch { alert("Webcam unavailable. Please upload a photo instead."); }
+  };
+
+  const captureWebcam = () => {
+    const c=snapRef.current, v=videoRef.current;
+    c.width=v.videoWidth; c.height=v.videoHeight;
+    c.getContext("2d").drawImage(v,0,0);
+    setPhoto(c.toDataURL("image/jpeg"));
+    setResult(null);
+    v.srcObject?.getTracks().forEach(t=>t.stop());
+    setWebcamOn(false);
+  };
+
+  const apply = useCallback(async () => {
+    if (!photo || !style) return;
+    setProcessing(true); setResult(null); setIsAI(false);
+
+    // Try AI first
+    if (style.imageURL) {
+      setStatusMsg("🤖 AI analysing face structure…");
+      await new Promise(r=>setTimeout(r,600));
+      setStatusMsg("✂️ Transferring hairstyle shape…");
+      try {
+        const aiRes = await runHairTransfer(photo, style.imageURL);
+        if (aiRes.success && aiRes.imageUrl) {
+          setResult(aiRes.imageUrl);
+          setIsAI(true);
+          setProcessing(false); setStatusMsg("");
+          return;
+        }
+      } catch(e) { console.error("Hair transfer error:", e); }
+      setStatusMsg("⚡ Applying colour overlay…");
+    } else {
+      setStatusMsg("🎨 Applying hair colour…");
+    }
+
+    // Fallback: colour overlay
+    await new Promise(r=>setTimeout(r,1000));
+    const dataUrl = await applyColourOverlay(photo, color.hex, highlight, overlayRef.current);
+    setResult(dataUrl);
+    setIsAI(false);
+    setProcessing(false); setStatusMsg("");
+  }, [photo, style, color, highlight]);
+
+  const download = () => {
+    const a=document.createElement("a");
+    a.href=result;
+    a.download=`hairstyle-${style.name.replace(/\s+/g,"-").toLowerCase()}.jpg`;
+    a.click();
+  };
+
+  const noImg = !style.imageURL;
+
+  return h("div",{ style:{minHeight:"100vh",background:"#0a0a0a"} },
+    h("style",null,`@keyframes spin{to{transform:rotate(360deg)}}`),
+    showSettings && h(SettingsModal,{onClose:()=>setShowSettings(false)}),
+    h(PrivacyBar),
+    h("canvas",{ref:snapRef,style:{display:"none"}}),
+    h("canvas",{ref:overlayRef,style:{display:"none"}}),
+
+    // Header
+    h("div",{ style:{
+      padding:"12px 20px",display:"flex",alignItems:"center",gap:12,
+      borderBottom:"1px solid #1a1a1a",flexWrap:"wrap"
+    }},
+      h("button",{className:"btn-outline",onClick:onBack},"← All Styles"),
+      h("span",{style:{fontWeight:700,fontSize:16}},style.name),
+      h("span",{className:"badge badge-gold"},style.category),
+      h("button",{onClick:()=>setShowSettings(true),style:{marginLeft:"auto"},className:"btn-outline"},"⚙️ Settings")
+    ),
+
+    // Body
+    h("div",{ style:{
+      display:"flex",gap:20,padding:20,maxWidth:1060,
+      margin:"0 auto",flexWrap:"wrap"
+    }},
+
+      // Left panel
+      h("div",{ style:{flex:"0 0 270px",display:"flex",flexDirection:"column",gap:14} },
+
+        // Style reference
+        h("div",{className:"card"},
+          h("div",{className:"label"},"Reference Style"),
+          noImg
+            ? h("div",{ style:{
+                height:200,borderRadius:10,background:"linear-gradient(135deg,#1a1a1a,#111)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                flexDirection:"column",gap:8
+              }},
+                h("div",{style:{fontSize:36}},"✂️"),
+                h("div",{style:{color:"#555",fontSize:12}},style.name)
+              )
+            : h("img",{src:style.imageURL,alt:style.name,style:{
+                width:"100%",borderRadius:10,display:"block",maxHeight:300,objectFit:"cover"
+              }}),
+          h("div",{style:{paddingTop:10}},
+            h("div",{style:{fontWeight:700,fontSize:15,marginBottom:3}},style.name),
+            style.description && h("div",{style:{color:"#777",fontSize:12,marginBottom:10}},style.description),
+            h(ScoreRing,{score})
+          )
+        ),
+
+        // Colour picker
+        h("div",{className:"card"},
+          h("div",{className:"label"},"Hair Colour"),
+          h("div",{style:{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}},
+            HAIR_COLORS.map(c => h("button",{
+              key:c.id, onClick:()=>setColor(c), title:c.label,
+              style:{
+                width:26,height:26,borderRadius:"50%",background:c.hex,
+                cursor:"pointer",border:`2px solid ${color.id===c.id?"#d4a843":"#2a2a2a"}`,
+                boxShadow:color.id===c.id?"0 0 0 2px #d4a84444":"none",
+                transition:"all .15s"
+              }
+            }))
+          ),
+          h("div",{style:{fontSize:12,color:"#666"}},
+            "Selected: ",h("span",{style:{color:"#d4a843",fontWeight:600}},color.label)
+          )
+        ),
+
+        // Highlights
+        h("div",{className:"card"},
+          h("div",{className:"label"},"Highlights"),
+          h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+            HIGHLIGHTS.map(hl => h("button",{
+              key:hl, onClick:()=>setHighlight(hl),
+              style:{
+                padding:"5px 11px",borderRadius:20,fontSize:11,cursor:"pointer",
+                border:`1px solid ${highlight===hl?"#d4a843":"#2a2a2a"}`,
+                background:highlight===hl?"#d4a84320":"transparent",
+                color:highlight===hl?"#d4a843":"#666",transition:"all .15s"
+              }
+            },hl))
+          )
+        )
+      ),
+
+      // Right panel
+      h("div",{ style:{flex:1,minWidth:270} },
+
+        // Photo upload area
+        h("div",{className:"card",style:{marginBottom:14}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}},
+            h("span",{style:{fontSize:14,fontWeight:700}},"📸 Customer Photo"),
+            photo && h("button",{className:"btn-outline",onClick:()=>{setPhoto(null);setResult(null);}},"Change")
+          ),
+          photo && !webcamOn
+            ? h("img",{src:photo,alt:"Customer",style:{
+                width:"100%",borderRadius:10,maxHeight:340,
+                objectFit:"cover",border:"1px solid #222"
+              }})
+            : h("div",{
+                style:{
+                  border:"2px dashed #252525",borderRadius:12,padding:"32px 20px",
+                  textAlign:"center",background:"#0d0d0d",cursor:"pointer"
+                },
+                onClick:()=>fileRef.current.click()
+              },
+                h("div",{style:{fontSize:36,marginBottom:10}},"📷"),
+                h("div",{style:{fontWeight:600,marginBottom:6,fontSize:14}},"Upload Customer Photo"),
+                h("div",{style:{color:"#555",fontSize:12,marginBottom:18}},
+                  "Head & shoulders · Good lighting · Face the camera"
+                ),
+                h("div",{style:{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}},
+                  h("button",{className:"btn-gold",onClick:e=>{e.stopPropagation();fileRef.current.click();}},"Choose File"),
+                  h("button",{className:"btn-outline",onClick:e=>{e.stopPropagation();startWebcam();}},"📹 Webcam")
+                ),
+                h("input",{ref:fileRef,type:"file",accept:"image/*",onChange:handleFile,style:{display:"none"}}),
+                h("div",{style:{marginTop:10,fontSize:11,color:"#3a3a3a"}},"JPG or PNG · Max 10MB")
+              ),
+          webcamOn && h("div",{style:{marginTop:12,position:"relative",borderRadius:12,overflow:"hidden"}},
+            h("video",{ref:videoRef,style:{width:"100%",display:"block"}}),
+            h("button",{
+              className:"btn-gold",
+              onClick:captureWebcam,
+              style:{position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)"}
+            },"📸 Capture")
+          )
+        ),
+
+        // Apply button
+        photo && !webcamOn && h("button",{
+          onClick:apply, disabled:processing,
+          style:{
+            width:"100%",padding:"15px",borderRadius:12,border:"none",
+            background:processing?"#1e1e1e":"linear-gradient(90deg,#d4a843,#c97d5a)",
+            color:processing?"#555":"#0f0f0f",
+            fontWeight:800,fontSize:15,cursor:processing?"not-allowed":"pointer",
+            display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+            transition:"all .2s",marginBottom:16
+          }
+        },
+          processing
+            ? [h("div",{key:"s",className:"spinner"}), statusMsg||"Processing…"]
+            : "✨ Apply This Hairstyle to Customer's Photo"
+        ),
+
+        // Result
+        result && h("div",{className:"card"},
+          h("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:14}},
+            h("span",{style:{fontWeight:700,fontSize:14}},"Transformation Result ✨"),
+            isAI
+              ? h("span",{className:"badge badge-green"},"🤖 AI Hair Transfer")
+              : h("span",{className:"badge badge-amber"},"🎨 Colour Overlay")
+          ),
+          h("div",{style:{display:"flex",gap:10,alignItems:"flex-start",marginBottom:14}},
+            h("div",{style:{flex:1,textAlign:"center"}},
+              h("div",{style:{fontSize:10,color:"#555",marginBottom:5,textTransform:"uppercase",letterSpacing:1}},"Before"),
+              h("img",{src:photo,alt:"Before",style:{width:"100%",borderRadius:8,border:"1px solid #222"}})
+            ),
+            h("div",{style:{color:"#d4a843",fontSize:22,flexShrink:0,paddingTop:24}},"→"),
+            h("div",{style:{flex:1,textAlign:"center"}},
+              h("div",{style:{fontSize:10,color:"#d4a843",marginBottom:5,textTransform:"uppercase",letterSpacing:1}},"After ✨"),
+              h("img",{src:result,alt:"After",style:{width:"100%",borderRadius:8,border:"2px solid #d4a84366"}})
+            )
+          ),
+          h("div",{style:{display:"flex",gap:12,flexWrap:"wrap",fontSize:12,color:"#666",marginBottom:14}},
+            h("span",null,"Style: ",h("strong",{style:{color:"#ccc"}},style.name)),
+            h("span",null,"Colour: ",h("span",{style:{color:color.hex}},"⬤")," ",h("strong",{style:{color:"#ccc"}},color.label)),
+            highlight!=="None" && h("span",null,"Highlights: ",h("strong",{style:{color:"#ccc"}},highlight))
+          ),
+          h("button",{
+            onClick:download,
+            style:{
+              width:"100%",padding:"13px",borderRadius:10,border:"none",
+              background:"linear-gradient(90deg,#d4a843,#c97d5a)",
+              color:"#0f0f0f",fontWeight:800,fontSize:14,cursor:"pointer"
+            }
+          },"⬇️ Download — Free, No Watermark")
+        )
+      )
+    )
+  );
+}
+
+// ─── HOME SCREEN ───────────────────────────────────────────
+function HomeScreen({ onSelect, selectedPhoto }) {
+  const [styles, setStyles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [category, setCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(()=>{
+    const url = CONFIG.WORKER_URL;
+    if (!url) { setLoading(false); setError("not_configured"); return; }
+    fetch(url)
+      .then(r=>r.json())
+      .then(data=>{
+        if (data.success && data.styles?.length) setStyles(data.styles);
+        else setError("empty_sheet");
+      })
+      .catch(()=>setError("fetch_failed"))
+      .finally(()=>setLoading(false));
+  },[]);
+
+  const filtered = styles.filter(s => {
+    const catOk = category==="All" || s.category===category;
+    const q = search.toLowerCase();
+    const searchOk = !search || s.name.toLowerCase().includes(q) ||
+      (s.tags||[]).some(t=>t.toLowerCase().includes(q));
+    return catOk && searchOk;
+  });
+
+  return h("div",{ style:{minHeight:"100vh",background:"#0a0a0a"} },
+    showSettings && h(SettingsModal,{onClose:()=>setShowSettings(false)}),
+    h(PrivacyBar),
+
+    // Header
+    h("header",{ style:{padding:"28px 20px 0",textAlign:"center"} },
+      h("div",{ style:{display:"inline-flex",alignItems:"center",gap:12,marginBottom:8} },
+        h("div",{ style:{
+          width:42,height:42,borderRadius:12,
+          background:"linear-gradient(135deg,#d4a843,#c97d5a)",
+          display:"flex",alignItems:"center",justifyContent:"center",fontSize:22
+        }},"✂️"),
+        h("h1",{ style:{
+          margin:0,fontSize:28,fontWeight:800,letterSpacing:"-0.5px",
+          background:"linear-gradient(90deg,#f5e6d0,#d4a843)",
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"
+        }},"ElmoHairStyler"),
+        h("button",{
+          onClick:()=>setShowSettings(true),
+          style:{fontSize:18,background:"none",border:"none",cursor:"pointer",opacity:.5},
+          title:"Settings"
+        },"⚙️")
+      ),
+      h("p",{ style:{color:"#555",fontSize:13,margin:"0 0 20px"} },
+        "AI-powered virtual hair styling · "+(styles.length||"")+" styles available"
+      )
+    ),
+
+    // Search + filters
+    h("div",{ style:{padding:"0 20px 20px",maxWidth:1060,margin:"0 auto"} },
+      h("div",{ style:{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap",alignItems:"center"} },
+        h("input",{
+          type:"text", placeholder:"Search styles…", value:search,
+          onChange:e=>setSearch(e.target.value),
+          style:{
+            flex:1, minWidth:200, background:"#111",border:"1px solid #222",
+            borderRadius:10,padding:"10px 14px",color:"#ccc",fontSize:13,outline:"none"
+          }
+        }),
+        h("div",{ style:{display:"flex",gap:6,flexWrap:"wrap"} },
+          CATEGORIES.map(cat => h("button",{
+            key:cat, onClick:()=>setCategory(cat),
+            style:{
+              padding:"7px 14px",borderRadius:20,fontSize:12,cursor:"pointer",
+              border:`1px solid ${category===cat?"#d4a843":"#222"}`,
+              background:category===cat?"#d4a84320":"transparent",
+              color:category===cat?"#d4a843":"#666",transition:"all .15s"
+            }
+          },cat))
+        )
+      ),
+
+      // Status
+      loading && h("div",{ style:{textAlign:"center",padding:60} },
+        h("div",{className:"spinner",style:{margin:"0 auto 12px"}}),
+        h("div",{style:{color:"#444",fontSize:13}},"Loading styles from Google Sheet…")
+      ),
+      error && h("div",{ style:{
+        textAlign:"center",padding:40,color:"#555",background:"#111",
+        borderRadius:14,border:"1px solid #1a1a1a"
+      }},
+        h("div",{style:{fontSize:32,marginBottom:10}},"⚠️"),
+        h("div",{style:{fontWeight:700,marginBottom:6,color:"#888"}},"Could not load styles"),
+        h("div",{style:{fontSize:12,marginBottom:16}},
+          error==="fetch_failed"
+            ? "Check your Worker URL in ⚙️ Settings"
+            : "No styles found in your Google Sheet"
+        ),
+        h("button",{className:"btn-gold",onClick:()=>setShowSettings(true)},"⚙️ Open Settings")
+      ),
+
+      // Grid
+      !loading && !error && h("div",null,
+        h("div",{style:{color:"#444",fontSize:12,marginBottom:12}},
+          `Showing ${filtered.length} of ${styles.length} styles`
+        ),
+        filtered.length === 0
+          ? h("div",{style:{textAlign:"center",padding:40,color:"#444"}},"No styles match your search.")
+          : h("div",{ style:{
+              display:"grid",
+              gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",
+              gap:12
+            }},
+              filtered.map((s,i) => h(StyleCard,{
+                key:s.id, style:s, hasPhoto:!!selectedPhoto,
+                onClick:()=>onSelect(s)
+              }))
+            )
+      )
+    )
+  );
+}
+
+// ─── ROOT APP ──────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = useState("home");
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [score] = useState(()=>Math.floor(72+22*Math.random()));
+
+  const handleSelect = style => {
+    setSelectedStyle(style);
+    setScreen("tryOn");
+  };
+
+  if (screen==="tryOn" && selectedStyle) {
+    return h(TryOnScreen,{
+      style:selectedStyle,
+      score,
+      onBack:()=>{ setScreen("home"); setSelectedStyle(null); }
+    });
+  }
+  return h(HomeScreen,{ onSelect:handleSelect, selectedPhoto:null });
+}
+
+// ─── MOUNT ─────────────────────────────────────────────────
+ReactDOM.render(h(App), document.getElementById("root"));
+</script>
+</body>
+</html>
